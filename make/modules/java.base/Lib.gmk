@@ -206,3 +206,50 @@ ifeq ($(call isTargetOs, windows), true)
   ))
   TARGETS += $(COPY_TZMAPPINGS)
 endif
+
+################################################################################
+# Create the OpenSSL SM3 library
+
+# OpenSSL configuration - requires explicit --with-openssl parameter
+ifneq ($(KONA_OPENSSL_HOME),)
+  # Use OpenSSL from configure script
+  OPENSSL_CFLAGS := -I$(KONA_OPENSSL_HOME)/include
+
+  # Smart library path detection
+  OPENSSL_LIB_PATHS := $(KONA_OPENSSL_HOME)/lib $(KONA_OPENSSL_HOME)/lib64 $(KONA_OPENSSL_HOME)/lib/x86_64-linux-gnu
+  OPENSSL_LIB_DIR := $(firstword $(foreach dir,$(OPENSSL_LIB_PATHS),$(wildcard $(dir)/libcrypto.*)))
+
+  ifneq ($(OPENSSL_LIB_DIR),)
+    OPENSSL_LIB_DIR := $(dir $(OPENSSL_LIB_DIR))
+    OPENSSL_LIBS := -L$(OPENSSL_LIB_DIR) -lcrypto
+    BUILD_OPENSSLSM3 := true
+    $(info Building OpenSSL SM3 with configured OpenSSL: $(KONA_OPENSSL_HOME))
+    $(info Using OpenSSL libraries from: $(OPENSSL_LIB_DIR))
+  else
+    $(warning Warning: OpenSSL libraries not found in $(KONA_OPENSSL_HOME))
+    $(warning Checked paths: $(OPENSSL_LIB_PATHS))
+    $(warning Please verify OpenSSL installation and library location)
+    BUILD_OPENSSLSM3 := false
+  endif
+else
+  # No OpenSSL specified - skip SM3 native implementation
+  $(info Note: OpenSSL not specified via --with-openssl. SM3 will use pure Java implementation.)
+  $(info Hint: Use --with-openssl=/path/to/openssl to enable native SM3 acceleration.)
+  BUILD_OPENSSLSM3 := false
+endif
+
+# Build OpenSSL SM3 library (if available)
+ifeq ($(BUILD_OPENSSLSM3), true)
+  $(eval $(call SetupJdkLibrary, BUILD_LIBOPENSSLSM3, \
+      NAME := opensslsm3, \
+      OPTIMIZATION := LOW, \
+      CFLAGS := $(CFLAGS_JDKLIB) $(OPENSSL_CFLAGS), \
+      DISABLED_WARNINGS_gcc := unused-function, \
+      DISABLED_WARNINGS_clang := unused-function, \
+      LDFLAGS := $(LDFLAGS_JDKLIB) \
+          $(call SET_SHARED_LIBRARY_ORIGIN), \
+      LIBS := $(OPENSSL_LIBS) $(LIBDL), \
+  ))
+
+  TARGETS += $(BUILD_LIBOPENSSLSM3)
+endif

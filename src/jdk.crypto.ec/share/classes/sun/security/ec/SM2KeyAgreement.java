@@ -41,6 +41,7 @@ import static java.security.spec.SM2ParameterSpec.*;
 
 import sun.security.ec.point.MutablePoint;
 import sun.security.ec.point.Point;
+import sun.security.provider.SM3MessageDigest;
 import sun.security.provider.SM3Engine;
 import sun.security.util.ArrayUtil;
 
@@ -56,7 +57,7 @@ public final class SM2KeyAgreement extends KeyAgreementSpi {
     private SM2KeyAgreementParamSpec paramSpec;
     private ECPublicKey peerEphemeralPublicKey;
 
-    private final SM3Engine sm3 = new SM3Engine();
+    private final SM3Engine sm3 = SM3MessageDigest.newSM3Engine();
 
     @Override
     protected void engineInit(Key key, SecureRandom random) {

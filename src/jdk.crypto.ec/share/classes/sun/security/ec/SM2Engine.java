@@ -33,6 +33,7 @@ import java.util.Arrays;
 import static java.security.spec.SM2ParameterSpec.COFACTOR;
 import static java.security.spec.SM2ParameterSpec.GENERATOR;
 
+import sun.security.provider.SM3MessageDigest;
 import sun.security.provider.SM3Engine;
 import sun.security.util.DerInputStream;
 import sun.security.util.DerOutputStream;
@@ -65,7 +66,7 @@ final class SM2Engine {
 
         this.encrypted = encrypted;
 
-        sm3 = new SM3Engine();
+        sm3 = SM3MessageDigest.newSM3Engine();
     }
 
     public boolean encrypted() {
