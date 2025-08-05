@@ -253,3 +253,49 @@ ifeq ($(BUILD_OPENSSLSM3), true)
 
   TARGETS += $(BUILD_LIBOPENSSLSM3)
 endif
+
+################################################################################
+# Create the OpenSSL SM4 library
+
+# SM4 configuration - requires explicit --with-openssl parameter
+ifneq ($(KONA_OPENSSL_HOME),)
+  # Use OpenSSL from configure script
+  SM4_OPENSSL_CFLAGS := -I$(KONA_OPENSSL_HOME)/include
+  # Enhanced library path detection for different Linux distributions
+  SM4_OPENSSL_LIB_PATHS := $(KONA_OPENSSL_HOME)/lib64 $(KONA_OPENSSL_HOME)/lib $(KONA_OPENSSL_HOME)/lib/x86_64-linux-gnu
+  SM4_OPENSSL_LIB_DIR := $(firstword $(foreach dir,$(SM4_OPENSSL_LIB_PATHS),$(wildcard $(dir)/libcrypto.*)))
+
+  ifneq ($(SM4_OPENSSL_LIB_DIR),)
+    SM4_OPENSSL_LIB_DIR := $(dir $(SM4_OPENSSL_LIB_DIR))
+    SM4_OPENSSL_LIBS := -L$(SM4_OPENSSL_LIB_DIR) -lcrypto
+    BUILD_OPENSSLSM4 := true
+    $(info Building OpenSSL SM4 with configured OpenSSL: $(KONA_OPENSSL_HOME))
+    $(info Using OpenSSL libraries from: $(SM4_OPENSSL_LIB_DIR))
+  else
+    $(warning Warning: OpenSSL libraries not found in $(KONA_OPENSSL_HOME))
+    $(warning Checked paths: $(SM4_OPENSSL_LIB_PATHS))
+    $(warning Please verify OpenSSL installation and library location)
+    BUILD_OPENSSLSM4 := false
+  endif
+else
+  # No OpenSSL specified - skip SM4 native implementation
+  $(info Note: OpenSSL not specified via --with-openssl. SM4 will use pure Java implementation.)
+  $(info Hint: Use --with-openssl=/path/to/openssl to enable native SM4 acceleration.)
+  BUILD_OPENSSLSM4 := false
+endif
+
+# Build OpenSSL SM4 library (if available)
+ifeq ($(BUILD_OPENSSLSM4), true)
+  $(eval $(call SetupJdkLibrary, BUILD_LIBOPENSSLSM4, \
+      NAME := opensslsm4, \
+      OPTIMIZATION := LOW, \
+      CFLAGS := $(CFLAGS_JDKLIB) $(SM4_OPENSSL_CFLAGS), \
+      DISABLED_WARNINGS_gcc := unused-function, \
+      DISABLED_WARNINGS_clang := unused-function, \
+      LDFLAGS := $(LDFLAGS_JDKLIB) \
+          $(call SET_SHARED_LIBRARY_ORIGIN), \
+      LIBS := $(SM4_OPENSSL_LIBS) $(LIBDL), \
+  ))
+
+  TARGETS += $(BUILD_LIBOPENSSLSM4)
+endif

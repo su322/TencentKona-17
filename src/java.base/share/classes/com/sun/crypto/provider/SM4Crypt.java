@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022, 2023, THL A29 Limited, a Tencent company. All rights reserved.
+ * Copyright (C) 2022, 2025, THL A29 Limited, a Tencent company. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify
@@ -22,6 +22,13 @@ package com.sun.crypto.provider;
 
 import java.security.InvalidKeyException;
 
+/**
+ * SM4 cipher implementation with native acceleration support.
+ *
+ * This class provides both Java and native implementations of the SM4 block cipher.
+ * When available, it uses native code through SM4EngineNative for better
+ * performance. Falls back to pure Java implementation when native support is unavailable.
+ */
 final class SM4Crypt extends SymmetricCipher {
 
     private SM4Engine engine;
@@ -31,6 +38,18 @@ final class SM4Crypt extends SymmetricCipher {
         return 16;
     }
 
+    /**
+     * Creates the appropriate SM4 engine implementation based on availability.
+     * Prefers native implementation when available, falls back to Java implementation.
+     */
+    private static SM4Engine createEngine(byte[] key, boolean encrypt) {
+        if (SM4EngineNative.isAvailable()) {
+            return new SM4EngineNative(key, encrypt);
+        } else {
+            return new SM4EngineImpl(key, encrypt);
+        }
+    }
+
     @Override
     void init(boolean decrypting, String algorithm, byte[] key)
             throws InvalidKeyException {
@@ -38,7 +57,8 @@ final class SM4Crypt extends SymmetricCipher {
             throw new InvalidKeyException("The algorithm must be SM4");
         }
 
-        engine = new SM4Engine(key, !decrypting);
+        // Create the appropriate engine implementation
+        engine = createEngine(key, !decrypting);
     }
 
     @Override
